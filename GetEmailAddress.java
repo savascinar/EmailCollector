@@ -36,8 +36,6 @@ public class GetEmailAddress {
     }
 
     private void getHtmlContent(String webAddress) {
-
-
         String address = addProtocol(webAddress);
 
         if (!isPageValid(address)) {
@@ -52,7 +50,6 @@ public class GetEmailAddress {
             while ((input = read.readLine()) != null) {
                 contents.append(input);
             }
-
             extractEmails(contents.toString());
 
         } catch (IOException ex) {
@@ -60,8 +57,6 @@ public class GetEmailAddress {
     }
 
     public void extractEmails(String contents) {
-
-
         String regex = "\\b[a-zA-Z0-9.-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z0-9.-]+\\b";
         Pattern pattern = Pattern.compile(regex);
 
@@ -73,13 +68,10 @@ public class GetEmailAddress {
                 System.out.println(match.group());
             }
         }
-
-
         extractChildLinks(contents);
     }
 
     public void extractChildLinks(String contents) {
-
         String parentLink = removeProtocol(baseUrl);
         Pattern patern = Pattern.compile("(?i)<a([^>]+)>(.+?)</a>");
         Matcher match = patern.matcher(contents);
@@ -98,12 +90,9 @@ public class GetEmailAddress {
                     if (!visitedLinks.contains(childlink)) {
                         visitedLinks.add(childlink);
                         getHtmlContent(childlink);
-
                     }
                 }
-
             }
-
         }
     }
 
@@ -113,7 +102,6 @@ public class GetEmailAddress {
         }
 
         return url;
-
     }
 
     private String addProtocol(String url) {
@@ -125,9 +113,7 @@ public class GetEmailAddress {
     }
 
     public String getLink(String link, String parent) {
-
         //Check if there is a full non-subdomain link
-
         String regex = "(?i)\\b" + parent + ".*\\b";
         Pattern pattern = Pattern.compile(regex);
         Matcher match = pattern.matcher(link);
@@ -142,7 +128,6 @@ public class GetEmailAddress {
         if (link.startsWith("mailto:") || link.startsWith("//") || link.startsWith(PROTOCOL_HTTP) || link.startsWith(PROTOCOL_HTTPS)) {
             return null;
         }
-
 
         //concate with parent url and return
         return parent + link;
@@ -188,7 +173,6 @@ public class GetEmailAddress {
     }
 
     public static void main(String[] args) throws Exception {
-
         if (args.length == 1) {
             GetEmailAddress getEmailAddress = new GetEmailAddress(args[0]);
             getEmailAddress.parseEmailAddresses();
