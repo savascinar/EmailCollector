@@ -1,9 +1,6 @@
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -35,25 +32,41 @@ public class GetEmailAddress {
         }
     }
 
-    private void getHtmlContent(String webAddress) {
-        String address = addProtocol(webAddress);
+    private void getHtmlContent(String webUrl) {
+        StringBuilder contents = new StringBuilder();
+        String address = addProtocol(webUrl);
+        try {
+            URL url = new URL(address);
+            URLConnection urlConnection = url.openConnection();
 
-        if (!isPageValid(address)) {
+            if (urlConnection instanceof HttpURLConnection) {
+                HttpURLConnection httpConnection = (HttpURLConnection) urlConnection;
+
+                int code = httpConnection.getResponseCode();
+                String contentType = httpConnection.getContentType();
+
+                if (code != 200) {
+                    return;
+                }
+                if (!contentType.contains("text/html")) {
+                    return;
+                }
+            }
+
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+
+            String input;
+            while ((input = bufferedReader.readLine()) != null) {
+                contents.append(input);
+            }
+
+            bufferedReader.close();
+
+        } catch (Exception e) {
             return;
         }
 
-        try {
-            URL url = new URL(address);
-            BufferedReader read = new BufferedReader(new InputStreamReader(url.openStream()));
-            StringBuilder contents = new StringBuilder();
-            String input;
-            while ((input = read.readLine()) != null) {
-                contents.append(input);
-            }
-            extractEmails(contents.toString());
-
-        } catch (IOException ex) {
-        }
+        extractEmails(contents.toString());
     }
 
     public void extractEmails(String contents) {
@@ -129,47 +142,12 @@ public class GetEmailAddress {
             return null;
         }
 
+        if(!link.startsWith("/")) {
+            link = "/" + link;
+        }
+
         //concate with parent url and return
         return parent + link;
-    }
-
-    private boolean isPageValid(String webUrl) {
-        try {
-            URL url = new URL(webUrl);
-            URLConnection connection = url.openConnection();
-
-            connection.connect();
-
-            if (connection instanceof HttpURLConnection) {
-                HttpURLConnection httpConnection = (HttpURLConnection) connection;
-                int code = httpConnection.getResponseCode();
-                String contentType = httpConnection.getContentType();
-
-                return isHtmlLink(contentType) && isResponseSuccess(code);
-
-            } else {
-                return false;
-            }
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    //Only success result,Not supporting redirect url or others
-    private boolean isResponseSuccess(int responseCode) {
-        if (responseCode == 200) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    private boolean isHtmlLink(String contentType) {
-        if (contentType.contains("text/html")) {
-            return true;
-        } else {
-            return false;
-        }
     }
 
     public static void main(String[] args) throws Exception {
