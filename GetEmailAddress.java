@@ -69,7 +69,8 @@ public class GetEmailAddress {
         extractEmails(contents.toString());
     }
 
-    public void extractEmails(String contents) {
+    private void extractEmails(String contents) {
+        contents = contents.replace("%20","");
         String regex = "\\b[a-zA-Z0-9.-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z0-9.-]+\\b";
         Pattern pattern = Pattern.compile(regex);
 
@@ -84,8 +85,7 @@ public class GetEmailAddress {
         extractChildLinks(contents);
     }
 
-    public void extractChildLinks(String contents) {
-        String parentLink = removeProtocol(baseUrl);
+    private void extractChildLinks(String contents) {
         Pattern patern = Pattern.compile("(?i)<a([^>]+)>(.+?)</a>");
         Matcher match = patern.matcher(contents);
         while (match.find()) {
@@ -96,13 +96,19 @@ public class GetEmailAddress {
 
             while (hrefMatch.find()) {
 
-                String childlink = getLink(hrefMatch.group(1), parentLink);
+                String hrefLink = hrefMatch.group(1);
+                String childLink = getFullLink(hrefLink);
 
-                if (childlink != null) {
-                    childlink = addProtocol(childlink);
-                    if (!visitedLinks.contains(childlink)) {
-                        visitedLinks.add(childlink);
-                        getHtmlContent(childlink);
+                if(childLink == null){
+
+                    childLink = getConcatenateLink(hrefLink);
+                }
+
+                if (childLink != null) {
+                    childLink = addProtocol(childLink);
+                    if (!visitedLinks.contains(childLink)) {
+                        visitedLinks.add(childLink);
+                        getHtmlContent(childLink);
                     }
                 }
             }
@@ -125,18 +131,23 @@ public class GetEmailAddress {
         return url;
     }
 
-    public String getLink(String link, String parent) {
-        //Check if there is a full non-subdomain link
-        String regex = "(?i)\\b" + parent + ".*\\b";
+    //Get a full non-subdomain link if there is
+    private String getFullLink(String link) {
+        String parentLink = removeProtocol(baseUrl);
+        String regex = "(?i)\\b" + parentLink + ".*\\b";
         Pattern pattern = Pattern.compile(regex);
         Matcher match = pattern.matcher(link);
         while (match.find()) {
             return match.group();
         }
 
-        link = link.replace("\"", "");
+        return null;
 
-        //If it is different url from parent(start with http, https or mail link, return null
+    }
+
+    private String getConcatenateLink(String link) {
+        String parentLink = removeProtocol(baseUrl);
+        link = link.replace("\"", "");
 
         if (link.startsWith("mailto:") || link.startsWith("//") || link.startsWith(PROTOCOL_HTTP) || link.startsWith(PROTOCOL_HTTPS)) {
             return null;
@@ -146,8 +157,7 @@ public class GetEmailAddress {
             link = "/" + link;
         }
 
-        //concate with parent url and return
-        return parent + link;
+        return parentLink + link;
     }
 
     public static void main(String[] args) throws Exception {
