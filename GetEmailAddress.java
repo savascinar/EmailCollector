@@ -53,7 +53,7 @@ public class GetEmailAddress {
                 int code = httpConnection.getResponseCode();
                 String contentType = httpConnection.getContentType();
 
-                if (code != 200) {
+                if (code < 200 || code >= 400) {
                     return;
                 }
                 if (!contentType.contains("text/html")) {
