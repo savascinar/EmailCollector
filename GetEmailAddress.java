@@ -1,13 +1,9 @@
 
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.*;
 import org.jsoup.select.Elements;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -41,40 +37,29 @@ public class GetEmailAddress {
     }
 
     private void getHtmlContent(String webUrl) {
-        StringBuilder contents = new StringBuilder();
         String address = addProtocol(webUrl);
         try {
-            URL url = new URL(address);
-            URLConnection urlConnection = url.openConnection();
+            Connection.Response response = Jsoup.connect(address).ignoreContentType(true)
+                    .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
+                    .timeout(10*1000)
+                    .followRedirects(true)
+                    .execute();
 
-            if (urlConnection instanceof HttpURLConnection) {
-                HttpURLConnection httpConnection = (HttpURLConnection) urlConnection;
 
-                int code = httpConnection.getResponseCode();
-                String contentType = httpConnection.getContentType();
+            int code = response.statusCode();
+            String contentType = response.contentType();
 
-                if (code < 200 || code >= 400) {
-                    return;
-                }
-                if (!contentType.contains("text/html")) {
-                    return;
-                }
+            if (code < 200 || code >= 400) {
+                return;
+            }
+            if (!contentType.contains("text/html")) {
+                return;
             }
 
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
-
-            String input;
-            while ((input = bufferedReader.readLine()) != null) {
-                contents.append(input);
-            }
-
-            bufferedReader.close();
+            checkHeaderForRedirect(response.body(), webUrl);
 
         } catch (Exception e) {
-            return;
         }
-
-        checkHeaderForRedirect(contents.toString(), webUrl);
     }
 
     private void checkHeaderForRedirect(String contents, String webUrl) {
