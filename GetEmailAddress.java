@@ -181,7 +181,7 @@ public class GetEmailAddress {
             domainLink = match.group();
         }
 
-        if (domainLink != null && !isLinkHasLoop(domainLink)) {
+        if (domainLink != null && !hasLinkLoop(domainLink)) {
             return domainLink;
         } else {
             return null;
@@ -189,7 +189,7 @@ public class GetEmailAddress {
 
     }
 
-    private boolean isLinkHasLoop(String link) {
+    private boolean hasLinkLoop(String link) {
 
         String[] parts = link.split("/");
 
