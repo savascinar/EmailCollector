@@ -1,6 +1,13 @@
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.*;
+import org.jsoup.select.Elements;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -14,6 +21,7 @@ public class GetEmailAddress {
     private String baseUrl;
     private Set<String> visitedLinks = new HashSet<>();
     private Set<String> collectedEmails = new HashSet<>();
+    private Set<String> loopLinks = new HashSet<>();
 
     public GetEmailAddress(String baseUrl) {
         this.baseUrl = baseUrl;
@@ -66,11 +74,42 @@ public class GetEmailAddress {
             return;
         }
 
-        extractEmails(contents.toString());
+        checkHeaderForRedirect(contents.toString(), webUrl);
     }
 
-    private void extractEmails(String contents) {
-        contents = contents.replace("%20","");
+    private void checkHeaderForRedirect(String contents, String webUrl) {
+        Pattern pattern = Pattern.compile("(?<=<head>)(.*?)(?=</head>)");
+
+        Matcher match = pattern.matcher(contents);
+
+        Document document = null;
+
+        while (match.find()) {
+
+            document = Jsoup.parse(match.group());
+
+        }
+
+        if (document == null) {
+            document = Jsoup.parse(contents);
+        }
+
+        String headUrl = RedirectHelper.getRedirectUrl(document);
+
+        if (headUrl != null) {
+
+            headUrl = getDomainLink(headUrl);
+            if (headUrl == null || visitedLinks.contains(headUrl)) {
+                return;
+            }
+        }
+
+        extractEmails(contents, webUrl);
+
+    }
+
+    private void extractEmails(String contents, String parentLink) {
+        contents = contents.replace("%20", "");
         String regex = "\\b[a-zA-Z0-9.-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z0-9.-]+\\b";
         Pattern pattern = Pattern.compile(regex);
 
@@ -82,28 +121,25 @@ public class GetEmailAddress {
                 System.out.println(match.group());
             }
         }
-        extractChildLinks(contents);
+
+        extractChildLinks(contents, parentLink);
+
     }
 
-    private void extractChildLinks(String contents) {
-        Pattern patern = Pattern.compile("(?i)<a([^>]+)>(.+?)</a>");
-        Matcher match = patern.matcher(contents);
-        while (match.find()) {
-            String hrefContent = match.group(1);
+    private void extractChildLinks(String contents, String parentLink) {
+        try {
+            Document document = Jsoup.parse(contents, addProtocol(parentLink));
+            Elements links = document.select("a[href]");
+            for (Element link : links) {
+                //Get full url
+                String url = link.attr("href");
+                String childLink = getDomainLink(url);
 
-            Pattern hrefPattern = Pattern.compile("\\s*(?i)href\\s*=\\s*(\"([^\"]*\")|'[^']*'|([^'\">\\s]+))");
-            Matcher hrefMatch = hrefPattern.matcher(hrefContent);
-
-            while (hrefMatch.find()) {
-
-                String hrefLink = hrefMatch.group(1);
-                String childLink = getFullLink(hrefLink);
-
-                if(childLink == null){
-
-                    childLink = getConcatenateLink(hrefLink);
+                if (childLink == null) {
+                    //Get Relative url
+                    url = link.absUrl("href");
+                    childLink = getDomainLink(url);
                 }
-
                 if (childLink != null) {
                     childLink = addProtocol(childLink);
                     if (!visitedLinks.contains(childLink)) {
@@ -112,6 +148,8 @@ public class GetEmailAddress {
                     }
                 }
             }
+        } catch (Exception e) {
+
         }
     }
 
@@ -132,33 +170,48 @@ public class GetEmailAddress {
     }
 
     //Get a full non-subdomain link if there is
-    private String getFullLink(String link) {
+    private String getDomainLink(String link) {
         String parentLink = removeProtocol(baseUrl);
         String regex = "(?i)\\b" + parentLink + ".*\\b";
         Pattern pattern = Pattern.compile(regex);
         Matcher match = pattern.matcher(link);
+        String domainLink = null;
+
         while (match.find()) {
-            return match.group();
+            domainLink = match.group();
         }
 
-        return null;
-
-    }
-
-    private String getConcatenateLink(String link) {
-        String parentLink = removeProtocol(baseUrl);
-        link = link.replace("\"", "");
-
-        if (link.startsWith("mailto:") || link.startsWith("//") || link.startsWith(PROTOCOL_HTTP) || link.startsWith(PROTOCOL_HTTPS)) {
+        if (domainLink != null && !isLinkHasLoop(domainLink)) {
+            return domainLink;
+        } else {
             return null;
         }
 
-        if(!link.startsWith("/")) {
-            link = "/" + link;
+    }
+
+    private boolean isLinkHasLoop(String link) {
+
+        String[] parts = link.split("/");
+
+        if (loopLinks.contains(link) || parts.length > 15) {
+
+            if (loopLinks.contains(link)) {
+
+                String result = "";
+                result = link.substring(0, link.lastIndexOf(parts[parts.length - 1]) - 1);
+                loopLinks.add(result);
+            } else {
+                loopLinks.add(link);
+            }
+
+            visitedLinks.add(link);
+
+            return true;
         }
 
-        return parentLink + link;
+        return false;
     }
+
 
     public static void main(String[] args) throws Exception {
         if (args.length == 1) {
