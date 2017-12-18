@@ -31,7 +31,7 @@ public class RedirectHelper {
             Element e = elements.tagName("HTTP-EQUIV").first();
             if (e.attr("HTTP-EQUIV").toLowerCase().equals("refresh")) {
                 String content = e.attr("content");
-                return parseEmail(content);
+                return parseUrl(content);
 
             }
         }
@@ -64,7 +64,7 @@ public class RedirectHelper {
                 DataNode childNode = (DataNode) e.childNodes().get(i);
                 String value = childNode.getWholeData();
                 value = value.replace("\"", "");
-                return parseEmail(value);
+                return parseUrl(value);
 
             }
 
@@ -74,7 +74,7 @@ public class RedirectHelper {
 
     }
 
-    private static String parseEmail(String content) {
+    private static String parseUrl(String content) {
 
         String regex = "\\b(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]";
 
