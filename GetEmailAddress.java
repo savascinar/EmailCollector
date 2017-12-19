@@ -59,18 +59,17 @@ public class GetEmailAddress {
 
             String currentUrl;
 
-
             String host = response.url().getHost();
             String pathUrl = response.url().getPath();
 
             if(getDomainLink(host) == null) {
                 return;
             } else {
-                address = addProtocol(host);
+                address = host;
             }
 
             if (pathUrl != null && pathUrl.length() > 1) {
-                currentUrl = baseUrl + pathUrl;
+                currentUrl = address + pathUrl;
             } else {
                 currentUrl = address;
             }
@@ -170,7 +169,7 @@ public class GetEmailAddress {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length == 1) {
+         if(args.length == 1) {
             GetEmailAddress getEmailAddress = new GetEmailAddress(args[0]);
             getEmailAddress.parseEmailAddresses();
         }
