@@ -17,7 +17,6 @@ public class GetEmailAddress {
     private String baseUrl;
     private Set<String> visitedLinks = new HashSet<>();
     private Set<String> collectedEmails = new HashSet<>();
-    private Set<String> loopLinks = new HashSet<>();
 
     public GetEmailAddress(String baseUrl) {
         this.baseUrl = baseUrl;
@@ -41,7 +40,7 @@ public class GetEmailAddress {
         try {
             Connection.Response response = Jsoup.connect(address).ignoreContentType(true)
                     .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
-                    .timeout(10*1000)
+                    .timeout(10 * 1000)
                     .followRedirects(true)
                     .execute();
 
@@ -50,47 +49,52 @@ public class GetEmailAddress {
             String contentType = response.contentType();
 
             if (code < 200 || code >= 400) {
+                visitedLinks.add(address);
                 return;
             }
             if (!contentType.contains("text/html")) {
+                visitedLinks.add(address);
                 return;
             }
 
-            checkHeaderForRedirect(response.body(), webUrl);
+
+            String content = response.body();
+
+            String currentUrl = null;
+            String redirectUrl = null;
+            try {
+                redirectUrl = RedirectHelper.getRedirectFromHeader(content);
+            } catch (Exception e) {
+
+            }
+            String pathUrl = response.url().getPath();
+
+            if (redirectUrl != null) {
+                currentUrl = redirectUrl;
+                if (!(currentUrl.startsWith(PROTOCOL_HTTP) || currentUrl.startsWith(PROTOCOL_HTTPS))) {
+                    currentUrl = baseUrl + currentUrl;
+                }
+            } else if (pathUrl != null && pathUrl.length() > 1) {
+                currentUrl = baseUrl + pathUrl;
+            } else {
+                currentUrl = address;
+            }
+
+            currentUrl = addProtocol(currentUrl);
+            String domainLink = getDomainLink(currentUrl);
+
+            if (domainLink == null) {
+                visitedLinks.add(currentUrl);
+            } else {
+                if (!visitedLinks.contains((domainLink))) {
+                    visitedLinks.add(domainLink);
+                    extractEmails(response.body(), domainLink);
+                }
+            }
 
         } catch (Exception e) {
+            visitedLinks.add(address);
         }
-    }
-
-    private void checkHeaderForRedirect(String contents, String webUrl) {
-        Pattern pattern = Pattern.compile("(?<=<head>)(.*?)(?=</head>)");
-
-        Matcher match = pattern.matcher(contents);
-
-        Document document = null;
-
-        while (match.find()) {
-
-            document = Jsoup.parse(match.group());
-
-        }
-
-        if (document == null) {
-            document = Jsoup.parse(contents);
-        }
-
-        String headUrl = RedirectHelper.getRedirectUrl(document);
-
-        if (headUrl != null) {
-
-            headUrl = getDomainLink(headUrl);
-            if (headUrl == null || visitedLinks.contains(headUrl)) {
-                return;
-            }
-        }
-
-        extractEmails(contents, webUrl);
-
     }
 
     private void extractEmails(String contents, String parentLink) {
@@ -156,47 +160,19 @@ public class GetEmailAddress {
 
     //Get a full non-subdomain link if there is
     private String getDomainLink(String link) {
+        link = removeProtocol(link);
         String parentLink = removeProtocol(baseUrl);
         String regex = "(?i)\\b" + parentLink + ".*\\b";
         Pattern pattern = Pattern.compile(regex);
         Matcher match = pattern.matcher(link);
-        String domainLink = null;
 
         while (match.find()) {
-            domainLink = match.group();
+            return match.group();
         }
 
-        if (domainLink != null && !hasLinkLoop(domainLink)) {
-            return domainLink;
-        } else {
-            return null;
-        }
+        return null;
 
     }
-
-    private boolean hasLinkLoop(String link) {
-
-        String[] parts = link.split("/");
-
-        if (loopLinks.contains(link) || parts.length > 15) {
-
-            if (loopLinks.contains(link)) {
-
-                String result = "";
-                result = link.substring(0, link.lastIndexOf(parts[parts.length - 1]) - 1);
-                loopLinks.add(result);
-            } else {
-                loopLinks.add(link);
-            }
-
-            visitedLinks.add(link);
-
-            return true;
-        }
-
-        return false;
-    }
-
 
     public static void main(String[] args) throws Exception {
         if (args.length == 1) {

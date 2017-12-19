@@ -1,3 +1,4 @@
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.DataNode;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -9,19 +10,39 @@ import java.util.regex.Pattern;
 public class RedirectHelper {
 
 
-    public static String getRedirectUrl(Document document) {
+    public static String getRedirectFromHeader(String contents) {
+        Pattern pattern = Pattern.compile("(?<=<head>)(.*?)(?=</head>)");
 
-        String redirectUrl = getMeta(document);
+        Matcher match = pattern.matcher(contents);
 
-        if(redirectUrl == null) {
-            redirectUrl = getCanonical(document);
+        Document fullDocument =Jsoup.parse(contents);
+        Document headDocument = Jsoup.parse(fullDocument.select("head").html());
+
+
+        while (match.find()) {
+
+            headDocument = Jsoup.parse(match.group());
+
         }
 
-        if(redirectUrl == null) {
-            redirectUrl = getWindowLocation(document);
+        if (headDocument == null) {
+            fullDocument = Jsoup.parse(contents);
         }
+
+
+        String redirectUrl = getMeta((headDocument != null) ? headDocument : fullDocument);
+
+        if (redirectUrl == null) {
+            redirectUrl = getCanonical((headDocument != null) ? headDocument : fullDocument);
+        }
+
+        if (redirectUrl == null) {
+            redirectUrl = getWindowLocation(headDocument);
+        }
+
 
         return redirectUrl;
+
     }
 
 
@@ -64,6 +85,10 @@ public class RedirectHelper {
                 DataNode childNode = (DataNode) e.childNodes().get(i);
                 String value = childNode.getWholeData();
                 value = value.replace("\"", "");
+                if(!value.startsWith("http://")) {
+                    value = "http://" + value;
+                }
+                System.out.println("WindowLoc   " + value);
                 return parseUrl(value);
 
             }
