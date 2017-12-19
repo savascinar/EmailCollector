@@ -57,24 +57,11 @@ public class GetEmailAddress {
                 return;
             }
 
+            String currentUrl;
 
-            String content = response.body();
-
-            String currentUrl = null;
-            String redirectUrl = null;
-            try {
-                redirectUrl = RedirectHelper.getRedirectFromHeader(content);
-            } catch (Exception e) {
-
-            }
             String pathUrl = response.url().getPath();
 
-            if (redirectUrl != null) {
-                currentUrl = redirectUrl;
-                if (!(currentUrl.startsWith(PROTOCOL_HTTP) || currentUrl.startsWith(PROTOCOL_HTTPS))) {
-                    currentUrl = baseUrl + currentUrl;
-                }
-            } else if (pathUrl != null && pathUrl.length() > 1) {
+            if (pathUrl != null && pathUrl.length() > 1) {
                 currentUrl = baseUrl + pathUrl;
             } else {
                 currentUrl = address;
@@ -176,8 +163,8 @@ public class GetEmailAddress {
 
     public static void main(String[] args) throws Exception {
         if (args.length == 1) {
-            GetEmailAddress getEmailAddress = new GetEmailAddress(args[0]);
-            getEmailAddress.parseEmailAddresses();
+        GetEmailAddress getEmailAddress = new GetEmailAddress(args[0]);
+        getEmailAddress.parseEmailAddresses();
         }
     }
 }
