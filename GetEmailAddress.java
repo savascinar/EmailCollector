@@ -38,12 +38,12 @@ public class GetEmailAddress {
     private void getHtmlContent(String webUrl) {
         String address = addProtocol(webUrl);
         try {
+
             Connection.Response response = Jsoup.connect(address).ignoreContentType(true)
                     .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
                     .timeout(10 * 1000)
                     .followRedirects(true)
                     .execute();
-
 
             int code = response.statusCode();
             String contentType = response.contentType();
@@ -59,7 +59,15 @@ public class GetEmailAddress {
 
             String currentUrl;
 
+
+            String host = response.url().getHost();
             String pathUrl = response.url().getPath();
+
+            if(getDomainLink(host) == null) {
+                return;
+            } else {
+                address = addProtocol(host);
+            }
 
             if (pathUrl != null && pathUrl.length() > 1) {
                 currentUrl = baseUrl + pathUrl;
@@ -163,8 +171,8 @@ public class GetEmailAddress {
 
     public static void main(String[] args) throws Exception {
         if (args.length == 1) {
-        GetEmailAddress getEmailAddress = new GetEmailAddress(args[0]);
-        getEmailAddress.parseEmailAddresses();
+            GetEmailAddress getEmailAddress = new GetEmailAddress(args[0]);
+            getEmailAddress.parseEmailAddresses();
         }
     }
 }
