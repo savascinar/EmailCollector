@@ -11,20 +11,27 @@ import java.util.regex.Pattern;
 
 public class GetEmailAddress {
 
+    private final int TEN_SECONDS = 10 * 1000;
     private final String PROTOCOL_HTTP = "http://";
     private final String PROTOCOL_HTTPS = "https://";
     private String protocol;
     private String baseUrl;
     private Set<String> visitedLinks = new HashSet<>();
     private Set<String> collectedEmails = new HashSet<>();
+    private Integer maxDepth;
 
     public GetEmailAddress(String baseUrl) {
         this.baseUrl = baseUrl;
     }
 
+    public GetEmailAddress(String baseUrl, int depth) {
+        this.baseUrl = baseUrl;
+        this.maxDepth = depth;
+    }
+
     public void parseEmailAddresses() {
         setProtocol();
-        getHtmlContent(baseUrl);
+        getHtmlContent(baseUrl, 0);
     }
 
     private void setProtocol() {
@@ -35,13 +42,13 @@ public class GetEmailAddress {
         }
     }
 
-    private void getHtmlContent(String webUrl) {
+    private void getHtmlContent(String webUrl, int currentDepth) {
         String address = addProtocol(webUrl);
         try {
 
             Connection.Response response = Jsoup.connect(address).ignoreContentType(true)
                     .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
-                    .timeout(10 * 1000)
+                    .timeout(TEN_SECONDS)
                     .followRedirects(true)
                     .execute();
 
@@ -62,7 +69,7 @@ public class GetEmailAddress {
             String host = response.url().getHost();
             String pathUrl = response.url().getPath();
 
-            if(getDomainLink(host) == null) {
+            if (getDomainLink(host) == null) {
                 return;
             } else {
                 address = host;
@@ -82,7 +89,7 @@ public class GetEmailAddress {
             } else {
                 if (!visitedLinks.contains((domainLink))) {
                     visitedLinks.add(domainLink);
-                    extractEmails(response.body(), domainLink);
+                    extractEmails(response.body(), domainLink,currentDepth);
                 }
             }
 
@@ -91,7 +98,7 @@ public class GetEmailAddress {
         }
     }
 
-    private void extractEmails(String contents, String parentLink) {
+    private void extractEmails(String contents, String parentLink,int currentDepth) {
         contents = contents.replace("%20", "");
         String regex = "\\b[a-zA-Z0-9.-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z0-9.-]+\\b";
         Pattern pattern = Pattern.compile(regex);
@@ -105,11 +112,11 @@ public class GetEmailAddress {
             }
         }
 
-        extractChildLinks(contents, parentLink);
+        extractChildLinks(contents, parentLink,currentDepth);
 
     }
 
-    private void extractChildLinks(String contents, String parentLink) {
+    private void extractChildLinks(String contents, String parentLink, int currentDepth) {
         try {
             Document document = Jsoup.parse(contents, addProtocol(parentLink));
             Elements links = document.select("a[href]");
@@ -127,7 +134,16 @@ public class GetEmailAddress {
                     childLink = addProtocol(childLink);
                     if (!visitedLinks.contains(childLink)) {
                         visitedLinks.add(childLink);
-                        getHtmlContent(childLink);
+
+                        int newDepth = currentDepth + 1;
+                        if (maxDepth == null) {
+                            getHtmlContent(childLink, newDepth);
+                        } else {
+                            if (newDepth <= maxDepth) {
+                                getHtmlContent(childLink, newDepth);
+                            }
+                        }
+
                     }
                 }
             }
@@ -169,8 +185,11 @@ public class GetEmailAddress {
     }
 
     public static void main(String[] args) throws Exception {
-         if(args.length == 1) {
+        if (args.length == 1) {
             GetEmailAddress getEmailAddress = new GetEmailAddress(args[0]);
+            getEmailAddress.parseEmailAddresses();
+        } else if (args.length == 2) {
+            GetEmailAddress getEmailAddress = new GetEmailAddress(args[0], Integer.parseInt(args[1]));
             getEmailAddress.parseEmailAddresses();
         }
     }

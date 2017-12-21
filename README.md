@@ -8,3 +8,7 @@ Ex: javac -cp ".:./jars/jsoup-1.11.2.jar" GetEmailAddress.java
 2) After compiling, run program with your input web address
 
 Ex: java -cp ".:./jars/jsoup-1.11.2.jar" GetEmailAddress targetWebAddress 
+
+Run with depth limit 
+
+Ex: java -cp ".:./jars/jsoup-1.11.2.jar" GetEmailAddress targetWebAddress 5 
