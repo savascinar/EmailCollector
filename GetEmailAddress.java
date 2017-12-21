@@ -118,6 +118,7 @@ public class GetEmailAddress {
 
     private void extractChildLinks(String contents, String parentLink, int currentDepth) {
         try {
+            int newDepth = currentDepth + 1;
             Document document = Jsoup.parse(contents, addProtocol(parentLink));
             Elements links = document.select("a[href]");
             for (Element link : links) {
@@ -135,7 +136,6 @@ public class GetEmailAddress {
                     if (!visitedLinks.contains(childLink)) {
                         visitedLinks.add(childLink);
 
-                        int newDepth = currentDepth + 1;
                         if (maxDepth == null) {
                             getHtmlContent(childLink, newDepth);
                         } else {
